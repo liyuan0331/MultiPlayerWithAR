@@ -9,6 +9,6 @@ EditorBuildSettings:
     path: Assets/CaptainsMess/Example/ExampleScene.unity
     guid: e2b0b25e7c35448b4adf4158c274752a
   - enabled: 1
-    path: Assets/ya/scene.unity
+    path: Assets/_ya/scene.unity
     guid: e4d7f5b6a2c144f66beb06559e011948
   m_configObjects: {}
