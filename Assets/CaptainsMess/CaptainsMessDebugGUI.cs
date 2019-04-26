@@ -7,6 +7,8 @@ public class CaptainsMessDebugGUI : MonoBehaviour
 	private CaptainsMess mess;
 	private CaptainsMessNetworkManager networkManager;
 
+    public bool showBtn = false;
+
 	public void Awake()
 	{
 		mess = FindObjectOfType(typeof(CaptainsMess)) as CaptainsMess;
@@ -18,7 +20,7 @@ public class CaptainsMessDebugGUI : MonoBehaviour
 		string serverString = "[SERVER]\n";
 		if (NetworkServer.active && networkManager.numPlayers > 0)
 		{
-            serverString += "Hosting at " + NetworkServer.connections[0].address + "\n";//Network.player.ipAddress + "\n";
+            serverString += "Hosting at " + NetworkManager.singleton.networkAddress;//Network.player.ipAddress + "\n";
 
             serverString += String.Format("Players Ready = {0}/{1}", networkManager.NumReadyPlayers(), networkManager.NumPlayers()) + "\n";
 		}
@@ -60,60 +62,62 @@ public class CaptainsMessDebugGUI : MonoBehaviour
 
 	void OnGUI()
 	{
-		GUILayout.BeginVertical();
-		{
-			if (networkManager.IsConnected())
-			{
-				GUI.color = Color.red;
-				if (GUILayout.Button("Disconnect", GUILayout.Width(200), GUILayout.Height(100)))
-				{
-					mess.Cancel();
-				}
-				GUI.color = Color.white;
-			}
-			else if (networkManager.IsBroadcasting() || networkManager.IsJoining())
-			{
-				GUI.color = Color.yellow;
-				if (GUILayout.Button("Cancel", GUILayout.Width(200), GUILayout.Height(100)))
-				{
-					mess.Cancel();
-				}
-				GUI.color = Color.white;
-			}
-			else
-			{
-				GUILayout.BeginHorizontal();
-				{
-					GUI.color = Color.green;
-					if (GUILayout.Button("Auto Connect", GUILayout.Width(200), GUILayout.Height(120)))
-					{
-						mess.AutoConnect();
-					}
-					GUI.color = Color.white;
+        if (showBtn) {
+            GUILayout.BeginVertical();
+            {
+            	if (networkManager.IsConnected())
+            	{
+            		GUI.color = Color.red;
+            		if (GUILayout.Button("Disconnect", GUILayout.Width(200), GUILayout.Height(100)))
+            		{
+            			mess.Cancel();
+            		}
+            		GUI.color = Color.white;
+            	}
+            	else if (networkManager.IsBroadcasting() || networkManager.IsJoining())
+            	{
+            		GUI.color = Color.yellow;
+            		if (GUILayout.Button("Cancel", GUILayout.Width(200), GUILayout.Height(100)))
+            		{
+            			mess.Cancel();
+            		}
+            		GUI.color = Color.white;
+            	}
+            	else
+            	{
+            		GUILayout.BeginHorizontal();
+            		{
+            			GUI.color = Color.green;
+            			if (GUILayout.Button("Auto Connect", GUILayout.Width(200), GUILayout.Height(120)))
+            			{
+            				mess.AutoConnect();
+            			}
+            			GUI.color = Color.white;
 
-					GUILayout.BeginVertical();
-					GUILayout.FlexibleSpace();
-					GUILayout.Label("... OR ...");
-					GUILayout.FlexibleSpace();
-					GUILayout.EndVertical();
+            			GUILayout.BeginVertical();
+            			GUILayout.FlexibleSpace();
+            			GUILayout.Label("... OR ...");
+            			GUILayout.FlexibleSpace();
+            			GUILayout.EndVertical();
 
-					GUILayout.BeginVertical();
-					{
-						if (GUILayout.Button("Host", GUILayout.Width(150), GUILayout.Height(60)))
-						{
-							mess.StartHosting();
-						}
-						if (GUILayout.Button("Join", GUILayout.Width(150), GUILayout.Height(60)))
-						{
-							mess.StartJoining();
-						}
-					}
-					GUILayout.EndVertical();
-				}
-				GUILayout.EndHorizontal();
-			}
-		}
-		GUILayout.EndVertical();
+            			GUILayout.BeginVertical();
+            			{
+            				if (GUILayout.Button("Host", GUILayout.Width(150), GUILayout.Height(60)))
+            				{
+            					mess.StartHosting();
+            				}
+            				if (GUILayout.Button("Join", GUILayout.Width(150), GUILayout.Height(60)))
+            				{
+            					mess.StartJoining();
+            				}
+            			}
+            			GUILayout.EndVertical();
+            		}
+            		GUILayout.EndHorizontal();
+            	}
+            }
+            GUILayout.EndVertical();
+        }
 
 		// Debug log
 		var style = new GUIStyle();

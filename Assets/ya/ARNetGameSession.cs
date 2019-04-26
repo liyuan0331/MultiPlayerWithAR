@@ -5,7 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
-public enum GameState
+public enum ARNetGameState
 {
 	Offline,
 	Connecting,
@@ -16,12 +16,12 @@ public enum GameState
 	GameOver
 }
 
-public class ExampleGameSession : NetworkBehaviour
+public class ARNetGameSession : NetworkBehaviour
 {
 	public Text gameStateField;
 	public Text gameRulesField;
 
-	public static ExampleGameSession instance;
+	public static ARNetGameSession instance;
 
 	ARNetCanvas networkListener;
 	List<ExamplePlayerScript> players;
@@ -79,7 +79,7 @@ public class ExampleGameSession : NetworkBehaviour
 		instance = this;
 
 		networkListener = FindObjectOfType<ARNetCanvas>();
-		//networkListener.gameSession = this;
+		networkListener.gameSession = this;
 
 		if (gameState != GameState.Lobby) {
 			gameState = GameState.Lobby;

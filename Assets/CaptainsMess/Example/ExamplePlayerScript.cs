@@ -50,7 +50,7 @@ public class ExamplePlayerScript : CaptainsMessPlayer
 	[Command]
 	public void CmdPlayAgain()
 	{
-		ExampleGameSession.instance.PlayAgain();
+		ARNetGameSession.instance.PlayAgain();
 	}
 
 	public override void OnClientEnterLobby()
@@ -77,7 +77,7 @@ public class ExamplePlayerScript : CaptainsMessPlayer
 
 	void ShowPlayer()
 	{
-		transform.SetParent(GameObject.Find("Canvas/PlayerContainer").transform, false);
+		transform.SetParent(GameObject.Find("NetworkCanvas/PlayerContainer").transform, false);
 
 		image.color = myColour;	
 		nameField.text = deviceName;
@@ -116,7 +116,7 @@ public class ExamplePlayerScript : CaptainsMessPlayer
 			GUILayout.BeginHorizontal();
 			GUILayout.FlexibleSpace();
 
-			ExampleGameSession gameSession = ExampleGameSession.instance;
+			ARNetGameSession gameSession = ARNetGameSession.instance;
 			if (gameSession)
 			{
 				if (gameSession.gameState == GameState.Lobby ||
