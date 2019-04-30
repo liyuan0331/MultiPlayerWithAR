@@ -77,7 +77,7 @@ public class ExamplePlayerScript : CaptainsMessPlayer
 
 	void ShowPlayer()
 	{
-		transform.SetParent(GameObject.Find("NetworkCanvas/PlayerContainer").transform, false);
+		transform.SetParent(GameObject.Find("NetworkCanvas/parent/PlayerContainer").transform, false);
 
 		image.color = myColour;	
 		nameField.text = deviceName;
@@ -116,7 +116,7 @@ public class ExamplePlayerScript : CaptainsMessPlayer
 			GUILayout.BeginHorizontal();
 			GUILayout.FlexibleSpace();
 
-			ARNetGameSession gameSession = ARNetGameSession.instance;
+			ExampleGameSession gameSession = ExampleGameSession.instance;
 			if (gameSession)
 			{
 				if (gameSession.gameState == GameState.Lobby ||

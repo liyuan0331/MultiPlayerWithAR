@@ -10,7 +10,7 @@ public class CaptainsMess : MonoBehaviour
     public int minPlayers = 2;
     public int maxPlayers = 4;
     public CaptainsMessPlayer playerPrefab;
-    public float countdownDuration = 3; // Wait for this many seconds after people are ready before starting the game
+    //public float countdownDuration = 3; // Wait for this many seconds after people are ready before starting the game
     public CaptainsMessListener listener;
     public bool verboseLogging = false;
     public bool useDebugGUI = true;
@@ -23,17 +23,21 @@ public class CaptainsMess : MonoBehaviour
         ValidateConfig();
 
         // Create network manager
-        networkManager = (Instantiate(Resources.Load("CaptainsMessNetworkManager")) as GameObject).GetComponent<CaptainsMessNetworkManager>();
+        if (networkManager == null) {
+            networkManager = FindObjectOfType(typeof(CaptainsMessNetworkManager)) as CaptainsMessNetworkManager;
+            //networkManager.listener = listener;
+        }
+        //networkManager = (Instantiate(Resources.Load("CaptainsMessNetworkManager")) as GameObject).GetComponent<CaptainsMessNetworkManager>();
         if (networkManager != null)
         {
-            //networkManager.logLevel = 0;
+            //networkMasnager.logLevel = 0;
 
             networkManager.name = "CaptainsMessNetworkManager";
             networkManager.runInBackground = false; // runInBackground is not recommended on iOS
             networkManager.broadcastIdentifier = broadcastIdentifier;
             networkManager.minPlayers = minPlayers;
             networkManager.SetMaxPlayers(maxPlayers); //Setting maxPlayers and maxConnections
-            networkManager.allReadyCountdownDuration = countdownDuration;
+            networkManager.allReadyCountdownDuration = 0; //countdownDuration;
             networkManager.forceServer = forceServer;
 
             // I'm just using a single scene for everything
@@ -118,7 +122,7 @@ public class CaptainsMess : MonoBehaviour
     public void Cancel()
     {
         networkManager.Cancel();
-        networkManager.ShutdownNetworkTransport();
+        //networkManager.ShutdownNetworkTransport();//加上这句，有时断开链接会报错 yuan
     }
 
     public bool AreAllPlayersReady()

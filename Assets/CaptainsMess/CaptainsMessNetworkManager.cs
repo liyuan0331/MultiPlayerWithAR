@@ -28,6 +28,8 @@ public class CaptainsMessNetworkManager : CaptainsMessLobbyManager
     private bool gameHasStarted = false;
     private bool joinedLobby = false;
 
+    public const int ChannelReliableSequenced = 0;
+
     public virtual void Start ()
     {
         deviceId = GetUniqueDeviceId();
@@ -569,8 +571,8 @@ public class CaptainsMessNetworkManager : CaptainsMessLobbyManager
         if (verboseLogging) {
             Debug.Log("#CaptainsMess# OnLobbyServerCreateLobbyPlayer (num players " + NumPlayers() + ")");
         }
-
         GameObject newLobbyPlayer = Instantiate(playerPrefab.gameObject, Vector3.zero, Quaternion.identity) as GameObject;
+        print("~~~" + newLobbyPlayer.name);
         return newLobbyPlayer;
     }
 

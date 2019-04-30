@@ -21,10 +21,12 @@ public class ARNetCanvas : CaptainsMessListener {
 
     public GameObject gameSessionPrefab;
     public ARNetGameSession gameSession;
-
-
+    
 
     public CanvasGroup[] menus;//0:主菜单 1:广播中/链接中 2:已连接
+
+    public Text localplayerMsg;
+    public GameObject gameControlGroup;
 
     public void Start() {
         networkState = NetworkState.Offline;
@@ -41,6 +43,10 @@ public class ARNetCanvas : CaptainsMessListener {
         } else {//主菜单
             ShowMenu(menus[0]);
         }
+    }
+
+    public void ActiveGameControl(bool b) {
+        gameControlGroup.SetActive(b);
     }
 
     void ShowMenu(CanvasGroup group) {
@@ -116,7 +122,6 @@ public class ARNetCanvas : CaptainsMessListener {
 
     public override void OnStartGame(List<CaptainsMessPlayer> aStartingPlayers) {
         Debug.Log("GO!");
-        print("~~~~" + gameSession);
         gameSession.OnStartGame(aStartingPlayers);
     }
 
@@ -125,4 +130,7 @@ public class ARNetCanvas : CaptainsMessListener {
         gameSession.OnAbortGame();
     }
 
+    public void LocalplayerMsg(string msg) {
+        localplayerMsg.text = msg;
+    }
 }

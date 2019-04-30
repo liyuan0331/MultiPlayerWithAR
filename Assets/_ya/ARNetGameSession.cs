@@ -1,18 +1,24 @@
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
+using Unity.Collections;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System;
+using System.Runtime.InteropServices;
+#if UNITY_IOS
+using UnityEngine.XR.ARKit;
+#endif
 
 public enum ARNetGameState
 {
 	Offline,
 	Connecting,
 	Lobby,
-	Countdown,
-	WaitingForRolls,
-	Scoring,
+    SendLocationSync,
+    WaitForLocationSync,
+	Gaming,
 	GameOver
 }
 
@@ -24,16 +30,17 @@ public class ARNetGameSession : NetworkBehaviour
 	public static ARNetGameSession instance;
 
 	ARNetCanvas networkListener;
-	List<ExamplePlayerScript> players;
+	List<ARNetPlayer> players;
 	string specialMessage = "";
+    NetworkTransmitter _networkTransmitter;
+    ARWorldMapController _arWorldMapController;
 
 	[SyncVar]
-	public GameState gameState;
+	public ARNetGameState gameState;
 
 	[SyncVar]
 	public string message = "";
-
-	public void OnDestroy()
+    public void OnDestroy()
 	{
 		if (gameStateField != null) {
 			gameStateField.text = "";
@@ -42,22 +49,26 @@ public class ARNetGameSession : NetworkBehaviour
 		if (gameRulesField != null) {
 			gameRulesField.gameObject.SetActive(false);
 		}
-	}
+
+        networkListener.LocalplayerMsg("");
+        networkListener.ActiveGameControl(true); 
+    }
 
 	[Server]
 	public override void OnStartServer()
 	{
-		networkListener = FindObjectOfType<ARNetCanvas>();
-		gameState = GameState.Connecting;
+        networkListener = FindObjectOfType<ARNetCanvas>();      
+        _arWorldMapController = FindObjectOfType<ARWorldMapController>();
+		gameState = ARNetGameState.Connecting;
 	}
 
 	[Server]
 	public void OnStartGame(List<CaptainsMessPlayer> aStartingPlayers)
 	{
-		players = aStartingPlayers.Select(p => p as ExamplePlayerScript).ToList();
+		players = aStartingPlayers.Select(p => p as ARNetPlayer).ToList();
 
 		RpcOnStartedGame();
-		foreach (ExamplePlayerScript p in players) {
+		foreach (ARNetPlayer p in players) {
 			p.RpcOnStartedGame();
 		}
 
@@ -78,112 +89,153 @@ public class ARNetGameSession : NetworkBehaviour
 		}
 		instance = this;
 
-		networkListener = FindObjectOfType<ARNetCanvas>();
-		networkListener.gameSession = this;
+        networkListener = FindObjectOfType<ARNetCanvas>(); 
+        networkListener.gameSession = this;
 
-		if (gameState != GameState.Lobby) {
-			gameState = GameState.Lobby;
+        _networkTransmitter = GetComponent<NetworkTransmitter>();
+
+		if (gameState != ARNetGameState.Lobby) {
+			gameState = ARNetGameState.Lobby;
 		}
-	}
 
-	public void OnJoinedLobby()
+        if (!isServer) {
+            networkListener.ActiveGameControl(false);
+        }
+        
+    }         
+    [Command]
+    public void CmdSendWorldMap() {
+        networkListener.LocalplayerMsg("开始发送地图信息");
+        print("开始发送地图信息");
+
+        //StopCoroutine("SendWorldMap2");
+        StartCoroutine(SendWorldMap2());
+    }
+    IEnumerator SendWorldMap2() {
+        ARWorldMap? arWorldMap = null;
+        while(true) {
+            yield return StartCoroutine(_arWorldMapController.StartGetCurARWorldMap());
+            arWorldMap = _arWorldMapController.GetCurARWorldMap();
+            if (arWorldMap != null) break;
+            yield return new WaitForSeconds(.3f);//如果读取ARMap失败，0.3秒后重试
+        }
+
+        byte[] mapData = arWorldMap.Value.Serialize(Allocator.Temp).ToArray();//序列化ARMap
+        //_networkTransmitter.StopCoroutine("SendBytesToClientsRoutine");
+        StartCoroutine(_networkTransmitter.SendBytesToClientsRoutine(0, mapData));
+    }
+
+    [Client]
+    void OnDataCompletelyReceived(int transmissionId, byte[] data) {
+        networkListener.LocalplayerMsg("地图信息接收完毕");
+        CaptainsMessNetworkManager networkManager = NetworkManager.singleton as CaptainsMessNetworkManager;
+        ARNetPlayer p = networkManager.localPlayer as ARNetPlayer;
+        print("地图信息接收完毕");
+        if (p != null) {
+            //byte[] 转为ARWorldMap,AR重新定位寻找
+            p.RelocateDevice(data);
+        }
+    }
+
+    [Client]
+    void OnDataFragmentReceived(int transmissionId, byte[] data) {
+        //每次接收到部分地图信息
+    }
+
+    public void OnJoinedLobby()
 	{
-		gameState = GameState.Lobby;
+		gameState = ARNetGameState.Lobby;
 	}
 
 	public void OnLeftLobby()
 	{
-		gameState = GameState.Offline;
+		gameState = ARNetGameState.Offline;
 	}
 
 	public void OnCountdownStarted()
 	{
-		gameState = GameState.Countdown;
+		//gameState = ARNetGameState.Countdown;
 	}
 
 	public void OnCountdownCancelled()
 	{
-		gameState = GameState.Lobby;
+		gameState = ARNetGameState.Lobby;
 	}
 
 	[Server]
 	IEnumerator RunGame()
 	{
-		// Reset game
-		foreach (ExamplePlayerScript p in players) {
-			p.totalPoints = 0;
-		}
 
-		while (MaxScore() < 3)
-		{
-			// Reset rolls
-			foreach (ExamplePlayerScript p in players) {
-				p.rollResult = 0;
-			}
+        gameState = ARNetGameState.WaitForLocationSync;
 
-			// Wait for all players to roll
-			gameState = GameState.WaitingForRolls;
+        while (!AllPlayersHaveSyncedLocation()) {
+            yield return new WaitForEndOfFrame();
+        }
 
-			while (!AllPlayersHaveRolled()) {
-				yield return null;
-			}
+        print("信息发送完毕");
+        networkListener.LocalplayerMsg("所有人都已接收地图信息");
 
-			// Award point to winner
-			gameState = GameState.Scoring;
+        while (true) {
+            yield return new WaitForEndOfFrame();
+        }
 
-			List<ExamplePlayerScript> scoringPlayers = PlayersWithHighestRoll();
-			if (scoringPlayers.Count == 1)
-			{
-				scoringPlayers[0].totalPoints += 1;
-				specialMessage = scoringPlayers[0].deviceName + " scores 1 point!";
-			}
-			else
-			{
-				specialMessage = "TIE! No points awarded.";
-			}
+        // Reset game
+        //foreach (ARNetPlayer p in players) {
+        //	p.totalPoints = 0;
+        //}
 
-			yield return new WaitForSeconds(2);
-			specialMessage = "";
-		}
+        //while (MaxScore() < 3)
+        //{
+        //	// Reset rolls
+        //	foreach (ExamplePlayerScript p in players) {
+        //		p.rollResult = 0;
+        //	}
 
-		// Declare winner!
-		specialMessage = PlayerWithHighestScore().deviceName + " WINS!";
-		yield return new WaitForSeconds(3);
-		specialMessage = "";
+        //	//// Wait for all players to roll
+        //	//gameState = ARNetGameState.WaitingForRolls;
 
-		// Game over
-		gameState = GameState.GameOver;
+        //	//while (!AllPlayersHaveRolled()) {
+        //	//	yield return null;
+        //	//}
+
+        //	//// Award point to winner
+        //	//gameState = ARNetGameState.Scoring;
+
+        //	List<ExamplePlayerScript> scoringPlayers = PlayersWithHighestRoll();
+        //	if (scoringPlayers.Count == 1)
+        //	{
+        //		scoringPlayers[0].totalPoints += 1;
+        //		specialMessage = scoringPlayers[0].deviceName + " scores 1 point!";
+        //	}
+        //	else
+        //	{
+        //		specialMessage = "TIE! No points awarded.";
+        //	}
+
+        //	yield return new WaitForSeconds(2);
+        //	specialMessage = "";
+        //}
+
+        //// Declare winner!
+        //specialMessage = PlayerWithHighestScore().deviceName + " WINS!";
+        //yield return new WaitForSeconds(3);
+        //specialMessage = "";
+
+        //// Game over
+        //gameState = ARNetGameState.GameOver;
+
+        //yield break;
 	}
 
-	[Server]
-	bool AllPlayersHaveRolled()
-	{
-		return players.All(p => p.rollResult > 0);
-	}
+    [Server]
+    bool AllPlayersHaveSyncedLocation() {
+        return players.All(p => p.locationSynced);
+    }
 
-	[Server]
-	List<ExamplePlayerScript> PlayersWithHighestRoll()
-	{
-		int highestRoll = players.Max(p => p.rollResult);
-		return players.Where(p => p.rollResult == highestRoll).ToList();
-	}
-
-	[Server]
-	int MaxScore()
-	{
-		return players.Max(p => p.totalPoints);
-	}
-
-	[Server]
-	ExamplePlayerScript PlayerWithHighestScore()
-	{
-		int highestScore = players.Max(p => p.totalPoints);
-		return players.Where(p => p.totalPoints == highestScore).First();
-	}
-
-	[Server]
+    [Server]
 	public void PlayAgain()
 	{
+        StopCoroutine("RunGame");
 		StartCoroutine(RunGame());
 	}
 
@@ -191,18 +243,18 @@ public class ARNetGameSession : NetworkBehaviour
 	{
 		if (isServer)
 		{
-			if (gameState == GameState.Countdown)
-			{
-				message = "Game Starting in " + Mathf.Ceil(networkListener.mess.CountdownTimer()) + "...";
-			}
-			else if (specialMessage != "")
-			{
-				message = specialMessage;
-			}
-			else
-			{
-				message = gameState.ToString();
-			}
+			//if (gameState == ARNetGameState.Countdown)
+			//{
+			//	message = "Game Starting in " + Mathf.Ceil(networkListener.mess.CountdownTimer()) + "...";
+			//}
+			//else if (specialMessage != "")
+			//{
+			//	message = specialMessage;
+			//}
+			//else
+			//{
+			//	message = gameState.ToString();
+			//}
 		}
 
 		gameStateField.text = message;
@@ -213,12 +265,18 @@ public class ARNetGameSession : NetworkBehaviour
 	[ClientRpc]
 	public void RpcOnStartedGame()
 	{
-		gameRulesField.gameObject.SetActive(true);
-	}
+        _networkTransmitter = GetComponent<NetworkTransmitter>();
+        _networkTransmitter.OnDataCompletelyReceived += OnDataCompletelyReceived;
+        _networkTransmitter.OnDataFragmentSent += OnDataFragmentReceived;
+        //gameRulesField.gameObject.SetActive(true);
+    }
 
-	[ClientRpc]
+
+
+
+    [ClientRpc]
 	public void RpcOnAbortedGame()
 	{
-		gameRulesField.gameObject.SetActive(false);
+        gameRulesField.gameObject.SetActive(false);
 	}
 }

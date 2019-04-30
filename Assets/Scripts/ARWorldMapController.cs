@@ -129,6 +129,32 @@ public class ARWorldMapController : MonoBehaviour
     }
 
 #if UNITY_IOS
+    ARWorldMap? tempWorldMap;
+    public ARWorldMap? GetCurARWorldMap() {
+        return tempWorldMap;
+    }
+    public IEnumerator StartGetCurARWorldMap() {
+        tempWorldMap = null;
+        var sessionSubsystem = ARSubsystemManager.sessionSubsystem;
+        if (sessionSubsystem == null) {//sessionSubsystem还未准备好，不能获得ARWorldMap
+            Log("No session subsystem available. Could not save.");
+            yield break;
+        }
+
+        var request = sessionSubsystem.GetARWorldMapAsync();
+
+        while (!request.status.IsDone())
+            yield return null;
+
+        if (request.status.IsError()) {
+            Log(string.Format("Session serialization failed with status {0}", request.status));
+            yield break;
+        }
+
+        tempWorldMap = request.GetWorldMap();
+        request.Dispose();
+    }
+
     IEnumerator Save()
     {
         var sessionSubsystem = ARSubsystemManager.sessionSubsystem;
@@ -153,6 +179,33 @@ public class ARWorldMapController : MonoBehaviour
         request.Dispose();
 
         SaveAndDisposeWorldMap(worldMap);
+    }
+
+    public bool SerializeFromByteArr(byte[] bytes) {
+        var sessionSubsystem = ARSubsystemManager.sessionSubsystem;
+        if (sessionSubsystem == null) {
+            Log("No session subsystem available. Could not load.");
+            return false;
+        }
+
+        var data = new NativeArray<byte>(bytes.Length, Allocator.Temp);
+        data.CopyFrom(bytes);
+        ARWorldMap worldMap;
+        if (ARWorldMap.TryDeserialize(data, out worldMap))
+            data.Dispose();
+
+        if (worldMap.valid) {
+            Log("Deserialized successfully.");
+        } else {
+            Debug.LogError("Data is not a valid ARWorldMap.");
+            return false;
+        }
+
+        //m_ARSession.Reset();//重置AR
+        Log("Apply ARWorldMap to current session.");
+        sessionSubsystem.ApplyWorldMap(worldMap);
+
+        return true;
     }
 
     IEnumerator Load()
