@@ -122,7 +122,8 @@ public class CaptainsMess : MonoBehaviour
     public void Cancel()
     {
         networkManager.Cancel();
-        //networkManager.ShutdownNetworkTransport();//加上这句，有时断开链接会报错 yuan
+        //加上这句，有时断开链接会报错。原因：RpcOnAbortedGame 中的gameRulesField为nullrefrence，注释解决 yuan
+        networkManager.ShutdownNetworkTransport();
     }
 
     public bool AreAllPlayersReady()

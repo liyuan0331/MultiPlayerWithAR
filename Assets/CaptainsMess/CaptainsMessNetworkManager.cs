@@ -582,26 +582,27 @@ public class CaptainsMessNetworkManager : CaptainsMessLobbyManager
             Debug.Log("#CaptainsMess# OnLobbyServerPlayersReady (num players " + NumPlayers() + ")");
         }
 
-        if (AreAllPlayersReady() && AreAllPlayersCompatible())
-        {
-            if (allReadyCountdownDuration > 0)
-            {
-                // Start all ready countdown
-                allReadyCountdown = allReadyCountdownDuration;
-                SendCountdownStartedMessage();
-            }
-            else
-            {
+        //注释这些是因为不需要倒计时
+        //if (AreAllPlayersReady() && AreAllPlayersCompatible())
+        //{
+            //if (allReadyCountdownDuration > 0)
+            //{
+            //    // Start all ready countdown
+            //    allReadyCountdown = allReadyCountdownDuration;
+            //    SendCountdownStartedMessage();
+            //}
+            //else
+            //{
                 // Stop the broadcast so no more players join
                 if (discoveryServer.running) {
                     discoveryServer.StopBroadcast();
                 }
 
                 // Start game immediately
-                gameHasStarted = true;
+                //gameHasStarted = true;
                 SendStartGameMessage(LobbyPlayers());
-            }
-        }
+            //}
+        //}
     }
 
     // ------------------------ lobby client virtuals ------------------------
